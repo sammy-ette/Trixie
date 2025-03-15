@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/user"
 	"strings"
+	"time"
 )
 
 type Node struct{
@@ -92,16 +95,23 @@ func getFullCommands(node *Node, command string) []string {
 }
 
 func main() {
-	trie := NewTrie()
-	trie.Write("ls -l")
-	trie.Write("ls -a")
-	trie.Write("git commit -m 'lol'")
-	trie.Write("git commit -m 'lmao'")
-	trie.Write("git commit -am 'lmao'")
-	trie.Write("rm -rf / --no-preserve-root")
+	trixie := NewTrixie("./db.trixie")
+	curuser, _ := user.Current()
+	data, err := os.ReadFile(curuser.HomeDir + "/.local/share/hilbish/.hilbish-history")
+	if err != nil {
+		panic(err)
+	}
+	lines := strings.Split(string(data), "\n")
 
-	fmt.Println("Autocomplete 'ls':", trie.Query("ls"))
-	fmt.Println("Autocomplete 'git':", trie.Query("git"))
-	fmt.Println("Autocomplete 'git com':", trie.Query("git com")) // This should return the commit commands.
-	fmt.Println("All Commands:", trie.AllCommands())
+	for _, l := range lines {
+		trixie.Trie.Write(l)
+	}
+
+	start := time.Now() // Start timing
+	err = trixie.Save()
+	if err != nil {
+		panic(err)
+	}
+	duration := time.Since(start) // End timing
+	fmt.Printf("Save took: %v\n", duration)
 }
