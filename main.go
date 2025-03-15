@@ -13,10 +13,12 @@ type Node struct{
 	Children map[string]*Node
 	Terminal bool
 	Frequency int
+	Sequence uint32
 }
 
 type Trie struct{
 	Root *Node
+	Sequence uint32 // global sequence
 }
 
 func NewTrie() *Trie {
@@ -43,6 +45,8 @@ func (t *Trie) Write(command string) {
 	}
 
 	cur.Terminal = true
+	cur.Sequence = t.Sequence
+	t.Sequence++
 }
 
 // Query returns a slice of commands that match the query. It is prefix-based and

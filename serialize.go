@@ -44,6 +44,13 @@ func (t *Trie) Serialize(w io.Writer) error {
 			return err
 		}
 
+		if n.Terminal {
+			// write terminal node sequence
+			if err := writeVarint(w, uint64(n.Sequence)); err != nil {
+				return err
+			}
+		}
+
 		// now write stuff for the child nodes!
 		// first is the amount of children
 		if err := writeVarint(w, uint64(len(n.Children))); err != nil {
