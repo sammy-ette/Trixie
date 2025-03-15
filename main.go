@@ -102,6 +102,6 @@ func main() {
 
 	fmt.Println("Autocomplete 'ls':", trie.Query("ls"))
 	fmt.Println("Autocomplete 'git':", trie.Query("git"))
-	fmt.Println("Autocomplete 'git com':", trie.Query("git com"))
+	fmt.Println("Autocomplete 'git com':", trie.Query("git com")) // This should return the commit commands.
 	fmt.Println("All Commands:", trie.AllCommands())
 }
