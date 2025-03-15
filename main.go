@@ -11,9 +11,9 @@ import (
 type Node struct{
 	Part string
 	Children map[string]*Node
-	Terminal bool
 	Frequency int
 	Sequence uint32
+	Timestamp time.Time
 }
 
 type Trie struct{
@@ -41,11 +41,11 @@ func (t *Trie) Write(command string) {
 		}
 
 		cur = cur.Children[part]
-		cur.Frequency++
 	}
 
-	cur.Terminal = true
+	cur.Frequency++
 	cur.Sequence = t.Sequence
+	cur.Timestamp = time.Now()
 	t.Sequence++
 }
 
@@ -69,7 +69,7 @@ func (t *Trie) Query(search string) []string {
 		}
 	}
 
-	if cur.Terminal && len(parts) == len(tokenize(search)) {
+	if len(cur.Children) == 0 && len(parts) == len(tokenize(search)) {
 		return []string{search}
 	}
 
@@ -87,7 +87,7 @@ func tokenize(command string) []string {
 func getFullCommands(node *Node, command string) []string {
 	results := []string{}
 
-	if node.Terminal {
+	if len(node.Children) == 0 {
 		results = append(results, strings.TrimSpace(command))
 	}
 

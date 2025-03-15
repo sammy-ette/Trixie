@@ -38,14 +38,25 @@ func (t *Trie) Serialize(w io.Writer) error {
 			return err
 		}
 
-		// write if the node is the last node in this path (terminal)
-		// and the frequency of this node
-		if err := write(combineTerminalFrequency(n)); err != nil {
-			return err
-		}
+		// VARIABLE SECTION
+		// so, to minimize size, and to define some things.
+		// if Frequency is > 1, up to this node is a full command string.
+		if n.Frequency > 0 {
+			if err := writeVarint(w, uint64(0b1)); err != nil {
+				return err
+			}
 
-		if n.Terminal {
-			// write terminal node sequence
+			// write timestamp
+			if err := write(n.Timestamp.Unix()); err != nil {
+				return err
+			}
+
+			// write the frequency of this node
+			if err := writeVarint(w, uint64(n.Frequency)); err != nil {
+				return err
+			}
+
+			// write node sequence
 			if err := writeVarint(w, uint64(n.Sequence)); err != nil {
 				return err
 			}
@@ -64,6 +75,7 @@ func (t *Trie) Serialize(w io.Writer) error {
 				if err := writeVarint(w, uint64(offset)); err != nil {
 					return err
 				}
+				firstChild = false
 			} else {
 				diff := offset - prevChildOffset
 				if err := writeVarint(w, uint64(diff)); err != nil {
@@ -75,7 +87,7 @@ func (t *Trie) Serialize(w io.Writer) error {
 			prevChildOffset = offset
 
 			if err := serializeNode(child); err != nil {
-				return nil
+				return err
 			}
 		}
 
@@ -96,24 +108,11 @@ func (t *Trie) Serialize(w io.Writer) error {
 	return serializeNode(t.Root)
 }
 
-// writeVarint writes a uint64 value using variable-length encoding.
-// Ref: https://protobuf.dev/programming-guides/encoding/
 func writeVarint(w io.Writer, value uint64) error {
 	var varintBuffer [binary.MaxVarintLen64]byte
 	n := binary.PutUvarint(varintBuffer[:], value) // [:] makes it a slice, wtf?
 	_, err := w.Write(varintBuffer[:n])
 	return err
-}
-
-// this packs the frequency and the terminal bool into 1 uint32.
-// is this really a needed "optimization"? idk, but its a possible one.
-func combineTerminalFrequency(n *Node) uint32 {
-	result := n.Frequency & 0x7FFFFFFF
-	if n.Terminal {
-		result |= 0x80000000
-	}
-
-	return uint32(result)
 }
 
 // Size of a node (in bytes)
@@ -123,12 +122,16 @@ func nodeSize(node *Node) int {
 	size += varintSize(uint64(len(node.Part)))
 	size += len(node.Part)
 
+	if node.Frequency > 0 {
+		// +5 bytes, 1 for the boolean and 4 for the timestamp 
+		size += 5
+
+		size += varintSize(uint64(node.Frequency))
+		size += varintSize(uint64(node.Sequence))
+	}
 	// Child count (varint)
 	childCount := len(node.Children)
 	size += varintSize(uint64(childCount))
-
-	// Combined Terminal and Frequency (uint32)
-	size += 4
 
 	// Child offsets (varints)
 	prevOffset := 0
