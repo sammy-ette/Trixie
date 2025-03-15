@@ -92,19 +92,10 @@ func (t *Trie) Serialize(w io.Writer) error {
 // writeVarint writes a uint64 value using variable-length encoding.
 // Ref: https://protobuf.dev/programming-guides/encoding/
 func writeVarint(w io.Writer, value uint64) error {
-	for {
-		if value < 128 {
-			_, err := w.Write([]byte{byte(value)})
-			return err
-		}
-
-		_, err := w.Write([]byte{byte((value & 0b01111111) | 128)})
-		if err != nil {
-			return err
-		}
-
-		value >>= 7
-	}
+	var varintBuffer [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(varintBuffer[:], value) // [:] makes it a slice, wtf?
+	_, err := w.Write(varintBuffer[:n])
+	return err
 }
 
 // this packs the frequency and the terminal bool into 1 uint32.
