@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/user"
@@ -128,7 +129,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		err = trixie.Trie.Deserialize(f)
+		err = trixie.Trie.Deserialize(bufio.NewReader(f))
 		if err != nil {
 			panic(err)
 		}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"time"
+	"unsafe"
 )
 
 func (t *Trie) Serialize(w io.Writer) error {
@@ -129,26 +130,7 @@ func (t *Trie) Deserialize(r io.Reader) error {
 	}
 
 	readVarint := func() (uint64, error) {
-		var buf [binary.MaxVarintLen64]byte
-		var bytesRead int
-
-		for {
-			if bytesRead >= binary.MaxVarintLen64 {
-				return 0, fmt.Errorf("varint too long")
-			}
-
-			_, err := r.Read(buf[bytesRead:bytesRead+1])
-			if err != nil {
-				return 0, err
-			}
-
-			bytesRead++
-
-			if buf[bytesRead-1]&0x80 == 0 {
-				val, _ := binary.Uvarint(buf[:bytesRead])
-				return val, nil
-			}
-		}
+		return binary.ReadUvarint(r.(io.ByteReader))
 	}
 
 	// Header Check
@@ -171,6 +153,7 @@ func (t *Trie) Deserialize(r io.Reader) error {
 	var deserializeNode func() (*Node, error)
 	deserializeNode = func() (*Node, error) {
 		partLength, err := readVarint()
+		//fmt.Println(partLength)
 		if err != nil {
 			panic(err)
 			return nil, err
@@ -180,16 +163,17 @@ func (t *Trie) Deserialize(r io.Reader) error {
 			panic(err)
 			return nil, err
 		}
-		part := string(partBytes)
+		//fmt.Println(part)
 
-		node := &Node{Part: part, Children: make(map[string]*Node)}
+		// []byte to string without extra allocation
+		node := &Node{Part: *(*string)(unsafe.Pointer(&partBytes))}
 
 		// Variable Section
-		hasFrequency, err := readVarint()
+		hasMoreInfo, err := readVarint()
 		if err != nil {
 			return nil, err
 		}
-		if hasFrequency == 0b1 {
+		if hasMoreInfo == 0b1 {
 			var unixTime uint64
 			if err := read(&unixTime); err != nil {
 				panic(err)
@@ -219,7 +203,7 @@ func (t *Trie) Deserialize(r io.Reader) error {
 		}
 
 		if childCount > 0 {
-			//read and discard offsets, keeping backward compatibility
+			node.Children = make(map[string]*Node, childCount)
 			for i := 0; i < int(childCount); i++ {
 				_, err := readVarint()
 				if err != nil {
