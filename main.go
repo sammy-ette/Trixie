@@ -23,7 +23,7 @@ type Trie struct{
 
 func NewTrie() *Trie {
 	return &Trie{
-		Root: &Node{Children: make(map[string]*Node)},
+		Root: &Node{Part: "", Children: make(map[string]*Node), Sequence: 1},
 	}
 }
 
@@ -41,9 +41,9 @@ func (t *Trie) Write(command string) {
 		}
 
 		cur = cur.Children[part]
+		cur.Frequency++
 	}
 
-	cur.Frequency++
 	cur.Sequence = t.Sequence
 	cur.Timestamp = time.Now()
 	t.Sequence++
@@ -100,7 +100,7 @@ func getFullCommands(node *Node, command string) []string {
 
 func main() {
 	trixie := NewTrixie("./db.trixie")
-	curuser, _ := user.Current()
+	curuser, err := user.Current()
 	data, err := os.ReadFile(curuser.HomeDir + "/.local/share/hilbish/.hilbish-history")
 	if err != nil {
 		panic(err)
@@ -111,11 +111,39 @@ func main() {
 		trixie.Trie.Write(l)
 	}
 
-	start := time.Now() // Start timing
-	err = trixie.Save()
-	if err != nil {
-		panic(err)
+	{
+		start := time.Now()
+		err = trixie.Save()
+		if err != nil {
+			panic(err)
+		}
+		duration := time.Since(start)
+		fmt.Printf("Save took: %v\n", duration)
 	}
-	duration := time.Since(start) // End timing
-	fmt.Printf("Save took: %v\n", duration)
+
+	{
+		
+		startDeserde := time.Now()
+		f, err := os.Open("./db.trixie")
+		if err != nil {
+			panic(err)
+		}
+		err = trixie.Trie.Deserialize(f)
+		if err != nil {
+			panic(err)
+		}
+		f.Close()
+		loadDur := time.Since(startDeserde)
+		fmt.Printf("Load took: %v\n", loadDur)
+	}
+
+	{
+		start := time.Now()
+		err = trixie.Save()
+		if err != nil {
+			panic(err)
+		}
+		duration := time.Since(start)
+		fmt.Printf("Save took: %v\n", duration)
+	}
 }
